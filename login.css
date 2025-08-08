@@ -1,0 +1,223 @@
+body {
+  background: #232946;
+  min-height: 100vh;
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.logo-top-right {
+  position: absolute;
+  top: 32px;
+  right: 48px;
+  width: 80px;
+  height: auto;
+  z-index: 10;
+  box-shadow: 0 4px 16px rgba(31, 38, 135, 0.12);
+  border-radius: 16px;
+  background: #fff;
+  padding: 8px;
+}
+
+.logo-top-right.circular-logo {
+  border-radius: 50%;
+  padding: 8px;
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+
+.quotes-top-left {
+  position: absolute;
+  top: 32px;
+  left: 48px;
+  background: #232946;
+  color: #e0e6f7;
+  padding: 18px 28px;
+  border-radius: 1.2rem;
+  z-index: 10;
+  max-width: 420px;
+  text-align: left;
+  letter-spacing: 0.01em;
+  box-shadow: none;
+  border: none;
+  opacity: 0.95;
+}
+
+.motto-line {
+  display: block;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 2.1rem;
+  font-weight: 600;
+  color: #e0e6f7;
+  margin-bottom: 0.1em;
+  letter-spacing: 0.01em;
+}
+
+.motto-breeze {
+  display: block;
+  font-family: 'Brush Script MT', 'Pacifico', 'Dancing Script', cursive, sans-serif;
+  font-size: 2.3rem;
+  font-weight: 700;
+  color: #a5d8ff;
+  letter-spacing: 0.04em;
+  margin-top: 0.1em;
+  text-shadow: 0 2px 12px rgba(31, 38, 135, 0.18);
+}
+
+.italic {
+  font-style: italic;
+}
+
+.main-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.brand-title {
+  font-size: 3rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.5rem;
+  text-shadow: 0 4px 24px rgba(31, 38, 135, 0.25);
+}
+
+.brand-subtitle {
+  font-size: 1.3rem;
+  font-weight: 400;
+  color: #a5d8ff;
+  margin-bottom: 2.5rem;
+  letter-spacing: 0.01em;
+  text-align: center;
+}
+
+.signin-options {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 350px;
+}
+
+.signin-btn {
+  padding: 1.1rem 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 0.7rem;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(31, 38, 135, 0.12);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.signin-btn:hover {
+  background: linear-gradient(90deg, #764ba2, #667eea);
+  transform: translateY(-2px) scale(1.03);
+}
+
+.signup-box {
+  margin-top: 2.2rem;
+  background: #1a1d2b;
+  border-radius: 1rem;
+  padding: 1.2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 2px 12px rgba(31, 38, 135, 0.10);
+  gap: 0.8rem;
+}
+
+.signup-box span {
+  color: #e0e6f7;
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin-bottom: 0.2rem;
+}
+
+.signup-btn {
+  padding: 0.7rem 2.2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 0.7rem;
+  background: linear-gradient(90deg, #a5d8ff, #667eea);
+  color: #232946;
+  box-shadow: 0 2px 8px rgba(31, 38, 135, 0.10);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, transform 0.2s;
+}
+
+.signup-btn:hover {
+  background: linear-gradient(90deg, #667eea, #a5d8ff);
+  color: #232946;
+  transform: translateY(-2px) scale(1.04);
+}
+
+.signup-radio-group {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 0.5rem;
+  justify-content: center;
+}
+
+.signup-radio-group label {
+  color: #e0e6f7;
+  font-size: 1rem;
+  font-weight: 400;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+}
+
+.signup-radio {
+  width: 14px;
+  height: 14px;
+  accent-color: #667eea;
+  margin-right: 0.2rem;
+}
+
+@media (max-width: 600px) {
+  .logo-top-right,
+  .logo-top-right.circular-logo {
+    top: 16px;
+    right: 16px;
+    width: 56px;
+    padding: 4px;
+  }
+  .brand-title {
+    font-size: 2rem;
+  }
+  .brand-subtitle {
+    font-size: 1rem;
+  }
+  .signin-options {
+    max-width: 90vw;
+  }
+  .quotes-top-left {
+    top: 12px;
+    left: 8px;
+    font-size: 1rem;
+    padding: 10px 14px;
+    max-width: 90vw;
+  }
+  .motto-line {
+    font-size: 1.2rem;
+  }
+  .motto-breeze {
+    font-size: 1.4rem;
+  }
+  .signup-box {
+    margin-top: 1.2rem;
+    padding: 0.7rem 0.7rem;
+  }
+  .signup-btn {
+    font-size: 1rem;
+    padding: 0.6rem 1.2rem;
+  }
+} 
