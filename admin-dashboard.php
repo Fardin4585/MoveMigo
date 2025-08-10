@@ -90,12 +90,49 @@ $sql = "SELECT
 
 $reports = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
 
+// Fetch all users (tenants and homeowners)
+$tenants_sql = "SELECT 
+                    id, 
+                    first_name, 
+                    last_name, 
+                    email, 
+                    phone, 
+                    created_at, 
+                    blocked,
+                    'tenant' as user_type
+                 FROM tenants 
+                 ORDER BY created_at DESC";
+$tenants = $pdo->query($tenants_sql)->fetchAll(PDO::FETCH_ASSOC);
+
+$homeowners_sql = "SELECT 
+                       id, 
+                       first_name, 
+                       last_name, 
+                       email, 
+                       phone, 
+                       created_at, 
+                       blocked,
+                       'homeowner' as user_type
+                    FROM homeowners 
+                    ORDER BY created_at DESC";
+$homeowners = $pdo->query($homeowners_sql)->fetchAll(PDO::FETCH_ASSOC);
+
+// Combine all users
+$all_users = array_merge($tenants, $homeowners);
+
 // Get statistics
 $total_reports = count($reports);
 $pending_reports = count(array_filter($reports, function($r) { return $r['status'] === 'pending'; }));
 $valid_reports = count(array_filter($reports, function($r) { return $r['status'] === 'valid'; }));
 $invalid_reports = count(array_filter($reports, function($r) { return $r['status'] === 'invalid'; }));
 $blocked_users = count(array_filter($reports, function($r) { return $r['is_blocked'] == 1; }));
+
+// User statistics
+$total_users = count($all_users);
+$total_tenants = count($tenants);
+$total_homeowners = count($homeowners);
+$blocked_users_count = count(array_filter($all_users, function($u) { return $u['blocked'] == 1; }));
+$active_users = $total_users - $blocked_users_count;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -257,6 +294,10 @@ $blocked_users = count(array_filter($reports, function($r) { return $r['is_block
         .stat-card.valid { border-left-color: var(--success); }
         .stat-card.invalid { border-left-color: var(--danger); }
         .stat-card.blocked { border-left-color: var(--info); }
+        .stat-card.users { border-left-color: var(--primary); }
+        .stat-card.tenants { border-left-color: var(--secondary); }
+        .stat-card.homeowners { border-left-color: var(--accent); }
+        .stat-card.active { border-left-color: var(--success); }
         
         .stat-card .stat-icon {
             font-size: 2.5rem;
@@ -282,12 +323,19 @@ $blocked_users = count(array_filter($reports, function($r) { return $r['is_block
         .valid .stat-icon { color: var(--success); }
         .invalid .stat-icon { color: var(--danger); }
         .blocked .stat-icon { color: var(--info); }
+        .users .stat-icon { color: var(--primary); }
+        .tenants .stat-icon { color: var(--secondary); }
+        .homeowners .stat-icon { color: var(--accent); }
+        .active .stat-icon { color: var(--success); }
         
         .total .stat-number { color: var(--primary); }
         .pending .stat-number { color: var(--warning); }
         .valid .stat-number { color: var(--success); }
         .invalid .stat-number { color: var(--danger); }
         .blocked .stat-number { color: var(--info); }
+        .users .stat-number { color: var(--primary); }
+        .tenants .stat-number { color: var(--secondary); }
+        .active .stat-number { color: var(--success); }
         
         /* Reports Table */
         .reports-section {
@@ -376,6 +424,16 @@ $blocked_users = count(array_filter($reports, function($r) { return $r['is_block
         .status-invalid {
             background: rgba(220,53,69,0.2);
             color: #721c24;
+        }
+        
+        .status-tenant {
+            background: rgba(23,162,184,0.2);
+            color: #0c5460;
+        }
+        
+        .status-homeowner {
+            background: rgba(255,193,7,0.2);
+            color: #856404;
         }
         
         /* Action Buttons */
@@ -505,6 +563,16 @@ $blocked_users = count(array_filter($reports, function($r) { return $r['is_block
             .reports-table td {
                 padding: 0.75rem 0.5rem;
             }
+            
+            .section-header > div {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+            
+            .section-header select,
+            .section-header input {
+                width: 100% !important;
+            }
         }
         
         /* Toggle Sidebar Button */
@@ -548,11 +616,11 @@ $blocked_users = count(array_filter($reports, function($r) { return $r['is_block
                     <i class="fas fa-chart-bar"></i>
                     Dashboard
                 </a>
-                <a href="#" class="nav-item">
+                <a href="#reports-section" class="nav-item" onclick="scrollToSection('reports-section')">
                     <i class="fas fa-flag"></i>
-                    Reports
+                    Reports <span style="background: var(--accent); color: var(--dark); padding: 0.2rem 0.5rem; border-radius: 10px; font-size: 0.7rem; margin-left: auto;"><?= $total_reports ?></span>
                 </a>
-                <a href="#" class="nav-item">
+                <a href="#users-section" class="nav-item" onclick="scrollToSection('users-section')">
                     <i class="fas fa-users"></i>
                     Users
                 </a>
@@ -620,13 +688,45 @@ $blocked_users = count(array_filter($reports, function($r) { return $r['is_block
                     <div class="stat-icon">
                         <i class="fas fa-ban"></i>
                     </div>
-                    <div class="stat-number"><?= $blocked_users ?></div>
+                    <div class="stat-number"><?= $blocked_users_count ?></div>
                     <div class="stat-label">Blocked Users</div>
+                </div>
+                
+                <div class="stat-card users">
+                    <div class="stat-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-number"><?= $total_users ?></div>
+                    <div class="stat-label">Total Users</div>
+                </div>
+                
+                <div class="stat-card tenants">
+                    <div class="stat-icon">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="stat-number"><?= $total_tenants ?></div>
+                    <div class="stat-label">Tenants</div>
+                </div>
+                
+                <div class="stat-card homeowners">
+                    <div class="stat-icon">
+                        <i class="fas fa-home"></i>
+                    </div>
+                    <div class="stat-number"><?= $total_homeowners ?></div>
+                    <div class="stat-label">Homeowners</div>
+                </div>
+                
+                <div class="stat-card active">
+                    <div class="stat-icon">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <div class="stat-number"><?= $active_users ?></div>
+                    <div class="stat-label">Active Users</div>
                 </div>
             </div>
             
             <!-- Reports Section -->
-            <div class="reports-section">
+            <div class="reports-section" id="reports-section">
                 <div class="section-header">
                     <h3>
                         <i class="fas fa-flag"></i>
@@ -761,6 +861,102 @@ $blocked_users = count(array_filter($reports, function($r) { return $r['is_block
                     </table>
                 </div>
             </div>
+            
+            <!-- Users Section -->
+            <div class="reports-section" id="users-section">
+                <div class="section-header">
+                    <h3>
+                        <i class="fas fa-users"></i>
+                        User Management
+                    </h3>
+                    <div style="margin-top: 1rem; display: flex; gap: 1rem; align-items: center;">
+                        <input type="text" id="userSearch" placeholder="Search users by name, email, or phone..." 
+                               style="flex: 1; padding: 0.75rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;">
+                        <select id="userTypeFilter" style="padding: 0.75rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; min-width: 150px;">
+                            <option value="">All User Types</option>
+                            <option value="tenant">Tenants Only</option>
+                            <option value="homeowner">Homeowners Only</option>
+                        </select>
+                        <select id="statusFilter" style="padding: 0.75rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; min-width: 150px;">
+                            <option value="">All Statuses</option>
+                            <option value="active">Active Only</option>
+                            <option value="blocked">Blocked Only</option>
+                        </select>
+                    </div>
+                    <div style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.9rem;">
+                        Showing <span id="visibleUserCount"><?= count($all_users) ?></span> of <?= count($all_users) ?> users
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table class="reports-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>User Type</th>
+                                <th>Status</th>
+                                <th>Joined Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($all_users as $user): ?>
+                            <tr class="<?= ($user['blocked'] == 1) ? 'blocked-user' : '' ?>">
+                                <td><strong>#<?= $user['id'] ?></strong></td>
+                                <td>
+                                    <div>
+                                        <strong><?= htmlspecialchars($user['first_name'] . ' ' . $user['last_name']) ?></strong>
+                                    </div>
+                                </td>
+                                <td><?= htmlspecialchars($user['email']) ?></td>
+                                <td><?= htmlspecialchars($user['phone'] ?? 'N/A') ?></td>
+                                <td>
+                                    <span class="status-badge status-<?= $user['user_type'] ?>">
+                                        <?= ucfirst($user['user_type']) ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <?php if ($user['blocked'] == 1): ?>
+                                        <span class="status-badge status-invalid">
+                                            <i class="fas fa-ban"></i> Blocked
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="status-badge status-valid">
+                                            <i class="fas fa-check"></i> Active
+                                        </span>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?= date('M d, Y', strtotime($user['created_at'])) ?></td>
+                                <td>
+                                    <div class="actions-container">
+                                        <?php if ($user['blocked'] == 1): ?>
+                                            <form method="post" class="form-inline">
+                                                <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
+                                                <input type="hidden" name="user_type" value="<?= $user['user_type'] ?>">
+                                                <button type="submit" name="unblock_user" class="btn btn-unblock">
+                                                    <i class="fas fa-unlock"></i> Unblock
+                                                </button>
+                                            </form>
+                                        <?php else: ?>
+                                            <form method="post" class="form-inline">
+                                                <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
+                                                <input type="hidden" name="user_type" value="<?= $user['user_type'] ?>">
+                                                <button type="submit" name="block_user" class="btn btn-block">
+                                                    <i class="fas fa-ban"></i> Block
+                                                </button>
+                                            </form>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </main>
     </div>
     
@@ -768,6 +964,17 @@ $blocked_users = count(array_filter($reports, function($r) { return $r['is_block
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             sidebar.classList.toggle('open');
+        }
+        
+        // Scroll to section function
+        function scrollToSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start' 
+                });
+            }
         }
         
         // Close sidebar when clicking outside on mobile
@@ -778,6 +985,67 @@ $blocked_users = count(array_filter($reports, function($r) { return $r['is_block
             if (window.innerWidth <= 1024) {
                 if (!sidebar.contains(event.target) && !sidebarToggle.contains(event.target)) {
                     sidebar.classList.remove('open');
+                }
+            }
+        });
+        
+        // User search and filter functionality
+        function filterUsers() {
+            const searchTerm = document.getElementById('userSearch').value.toLowerCase();
+            const userTypeFilter = document.getElementById('userTypeFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            const userRows = document.querySelectorAll('.reports-table tbody tr');
+            
+            userRows.forEach(row => {
+                const name = row.cells[1].textContent.toLowerCase();
+                const email = row.cells[2].textContent.toLowerCase();
+                const phone = row.cells[3].textContent.toLowerCase();
+                const userType = row.cells[4].textContent.toLowerCase();
+                const status = row.cells[5].textContent.toLowerCase();
+                
+                let showRow = true;
+                
+                // Search filter
+                if (searchTerm && !name.includes(searchTerm) && !email.includes(searchTerm) && !phone.includes(searchTerm)) {
+                    showRow = false;
+                }
+                
+                // User type filter
+                if (userTypeFilter && userType !== userTypeFilter) {
+                    showRow = false;
+                }
+                
+                // Status filter
+                if (statusFilter) {
+                    if (statusFilter === 'active' && status.includes('blocked')) {
+                        showRow = false;
+                    } else if (statusFilter === 'blocked' && status.includes('active')) {
+                        showRow = false;
+                    }
+                }
+                
+                row.style.display = showRow ? '' : 'none';
+            });
+            
+            // Update visible user count
+            const visibleCount = Array.from(userRows).filter(row => row.style.display !== 'none').length;
+            document.getElementById('visibleUserCount').textContent = visibleCount;
+        }
+        
+        // Add event listeners for all filters
+        document.getElementById('userSearch').addEventListener('input', filterUsers);
+        document.getElementById('userTypeFilter').addEventListener('change', filterUsers);
+        document.getElementById('statusFilter').addEventListener('change', filterUsers);
+        
+        // Add confirmation for block/unblock actions
+        document.addEventListener('submit', function(e) {
+            if (e.target.name === 'block_user') {
+                if (!confirm('Are you sure you want to block this user? They will not be able to access the system.')) {
+                    e.preventDefault();
+                }
+            } else if (e.target.name === 'unblock_user') {
+                if (!confirm('Are you sure you want to unblock this user? They will regain access to the system.')) {
+                    e.preventDefault();
                 }
             }
         });
