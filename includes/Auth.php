@@ -82,7 +82,7 @@ class Auth {
     // Login user
     public function login($email, $password) {
         // Try to find user in tenants table
-        $query = "SELECT id, email, password_hash, first_name, last_name, is_active 
+        $query = "SELECT id, email, password_hash, first_name, last_name, is_active, blocked 
                   FROM tenants 
                   WHERE email = :email AND is_active = 1";
 
@@ -92,6 +92,11 @@ class Auth {
 
         if ($stmt->rowCount() > 0) {
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            // Check if user is blocked
+            if ($row['blocked'] == 1) {
+                return ['success' => false, 'message' => 'Your account has been blocked by admin. Please contact support for assistance.'];
+            }
             
             if (password_verify($password, $row['password_hash'])) {
                 // Create session
@@ -113,7 +118,7 @@ class Auth {
         }
 
         // Try to find user in homeowners table
-        $query = "SELECT id, email, password_hash, first_name, last_name, is_active 
+        $query = "SELECT id, email, password_hash, first_name, last_name, is_active, blocked 
                   FROM homeowners 
                   WHERE email = :email AND is_active = 1";
 
@@ -123,6 +128,11 @@ class Auth {
 
         if ($stmt->rowCount() > 0) {
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            // Check if user is blocked
+            if ($row['blocked'] == 1) {
+                return ['success' => false, 'message' => 'Your account has been blocked by admin. Please contact support for assistance.'];
+            }
             
             if (password_verify($password, $row['password_hash'])) {
                 // Create session

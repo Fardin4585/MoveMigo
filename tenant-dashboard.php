@@ -459,6 +459,13 @@ $all_amenities = ['wifi', 'water', 'gas', 'parking', 'furnished', 'AC'];
             background: var(--secondary);
             color: white;
         }
+        .btn-report {
+            background: var(--accent);
+            color: #333;
+        }
+        .btn-report:hover {
+            background: #e0a800;
+        }
 
         .homeowner-info {
             background: #f8f9fa;
@@ -675,8 +682,11 @@ $all_amenities = ['wifi', 'water', 'gas', 'parking', 'furnished', 'AC'];
                                 <button class="btn-contact" onclick="contactHomeowner(<?php echo $property['id']; ?>)">
                                     <i class="fas fa-phone"></i> Contact
                                 </button>
-                                <button class="btn-message" onclick="messageHomeowner(<?php echo $property['id']; ?>, '<?php echo $property['homeowner_name']; ?>')">
+                                <button class="btn-message" onclick="messageHomeowner(<?php echo $property['id']; ?>, '<?php echo $property['homeowner_name']; ?>)">
                                     <i class="fas fa-comments"></i> Message
+                                </button>
+                                <button class="btn-report" onclick="reportHomeowner(<?php echo $property['homeowner_id']; ?>)">
+                                    <i class="fas fa-flag"></i> Report
                                 </button>
                             </div>
                         </div>
@@ -806,11 +816,18 @@ $all_amenities = ['wifi', 'water', 'gas', 'parking', 'furnished', 'AC'];
             
             // Store the property info in sessionStorage for the messages page
             sessionStorage.setItem('messagePropertyId', propertyId);
-            sessionStorage.setItem('messageHomeownerId', homeownerId);
             sessionStorage.setItem('messageHomeownerName', homeownerName);
             
             // Redirect to messages page
             window.location.href = 'messages.php';
+        }
+
+        // Report homeowner
+        function reportHomeowner(homeownerId) {
+            if (confirm('Are you sure you want to report this homeowner? This action will be reviewed by our admin team.')) {
+                // Redirect to report-user.php with the homeowner ID and type
+                window.location.href = `report-user.php?reported_user_id=${homeownerId}&reported_user_type=homeowner`;
+            }
         }
 
 
