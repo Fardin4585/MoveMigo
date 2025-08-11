@@ -38,7 +38,6 @@ $query = "SELECT
             hd.zip_code,
             hd.description,
             hd.is_available,
-            ho.id as homeowner_id,
             ho.first_name as homeowner_first_name,
             ho.last_name as homeowner_last_name,
             ho.phone as homeowner_phone
@@ -52,7 +51,44 @@ $stmt = $conn->prepare($query);
 $stmt->execute();
 $available_homes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// Get saved properties for this tenant
+$savedQuery = "SELECT 
+                h.id as home_id,
+                hd.home_name,
+                hd.num_of_bedrooms,
+                hd.washrooms,
+                hd.rent_monthly,
+                hd.utility_bills,
+                hd.facilities,
+                hd.family_bachelor_status,
+                hd.address,
+                hd.city,
+                hd.state,
+                hd.zip_code,
+                hd.description,
+                hd.is_available,
+                ho.first_name as homeowner_first_name,
+                ho.last_name as homeowner_last_name,
+                ho.phone as homeowner_phone,
+                sp.saved_at
+              FROM saved_properties sp
+              JOIN home h ON sp.home_id = h.id
+              JOIN home_details hd ON h.id = hd.home_id
+              JOIN homeowners ho ON h.homeowner_id = ho.id
+              WHERE sp.tenant_id = ?
+              ORDER BY sp.saved_at DESC";
 
+$stmt = $conn->prepare($savedQuery);
+$stmt->execute([$user['user_id']]);
+$saved_homes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Get saved home IDs for this tenant
+$savedHomeIds = [];
+$savedIdsQuery = "SELECT home_id FROM saved_properties WHERE tenant_id = ?";
+$stmt = $conn->prepare($savedIdsQuery);
+$stmt->execute([$user['user_id']]);
+$savedIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+$savedHomeIds = $savedIds;
 
 // Process homes for display
 $properties = [];
@@ -73,7 +109,7 @@ foreach ($available_homes as $home) {
         'baths' => $home['washrooms'],
         'desc' => $home['description'] ?: 'Beautiful property available for rent.',
         'amenities' => array_map('ucfirst', $facilities),
-        'homeowner_id' => $home['homeowner_id'],
+        'saved' => in_array($home['home_id'], $savedHomeIds),
         'homeowner_name' => $home['homeowner_first_name'] . ' ' . $home['homeowner_last_name'],
         'homeowner_phone' => $home['homeowner_phone'],
         'utility_bills' => $home['utility_bills'],
@@ -81,7 +117,33 @@ foreach ($available_homes as $home) {
     ];
 }
 
-
+// Process saved homes for display
+$saved_properties = [];
+foreach ($saved_homes as $home) {
+    $facilities = [];
+    if ($home['facilities']) {
+        $facilities = explode(',', $home['facilities']);
+        $facilities = array_map('trim', $facilities);
+        $facilities = array_filter($facilities);
+    }
+    
+    $saved_properties[] = [
+        'id' => $home['home_id'],
+        'name' => $home['home_name'] ?: 'Beautiful Home',
+        'location' => $home['address'] ? $home['address'] . ', ' . $home['city'] : $home['city'],
+        'rent' => $home['rent_monthly'],
+        'rooms' => $home['num_of_bedrooms'],
+        'baths' => $home['washrooms'],
+        'desc' => $home['description'] ?: 'Beautiful property available for rent.',
+        'amenities' => array_map('ucfirst', $facilities),
+        'saved' => true,
+        'homeowner_name' => $home['homeowner_first_name'] . ' ' . $home['homeowner_last_name'],
+        'homeowner_phone' => $home['homeowner_phone'],
+        'utility_bills' => $home['utility_bills'],
+        'family_bachelor_status' => $home['family_bachelor_status'],
+        'saved_at' => $home['saved_at']
+    ];
+}
 
 $all_amenities = ['wifi', 'water', 'gas', 'parking', 'furnished', 'AC'];
 ?>
@@ -196,87 +258,6 @@ $all_amenities = ['wifi', 'water', 'gas', 'parking', 'furnished', 'AC'];
         .profile.open .profile-dropdown {
             display: block;
         }
-        .profile-info {
-            padding: 15px 18px;
-            border-bottom: 1px solid #eee;
-        }
-        .profile-name {
-            font-weight: 600;
-            color: #333;
-            font-size: 0.95rem;
-            margin-bottom: 2px;
-        }
-        .profile-email {
-            color: #666;
-            font-size: 0.85rem;
-        }
-        .profile-divider {
-            height: 1px;
-            background: #eee;
-            margin: 5px 0;
-        }
-        .welcome-section {
-            text-align: center;
-            margin: 2rem 0 1rem 0;
-            padding: 1rem;
-        }
-        .welcome-section h2 {
-            color: var(--primary);
-            font-size: 1.8rem;
-            margin-bottom: 0.5rem;
-        }
-        .welcome-section p {
-            color: #666;
-            font-size: 1rem;
-            margin: 0;
-        }
-        .search-bar {
-            background: var(--card-bg);
-            padding: 1.5rem;
-            border-radius: 12px;
-            box-shadow: var(--shadow);
-            margin-bottom: 1.5rem;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        .search-input-group {
-            position: relative;
-            display: flex;
-            align-items: center;
-        }
-        .search-icon {
-            position: absolute;
-            left: 15px;
-            color: #666;
-            font-size: 1.1rem;
-        }
-        .search-input {
-            width: 100%;
-            padding: 12px 45px 12px 45px;
-            border: 2px solid #e1e5e9;
-            border-radius: 25px;
-            font-size: 1rem;
-            outline: none;
-            transition: border-color 0.3s;
-        }
-        .search-input:focus {
-            border-color: var(--primary);
-        }
-        .clear-search {
-            position: absolute;
-            right: 15px;
-            background: none;
-            border: none;
-            color: #666;
-            cursor: pointer;
-            padding: 5px;
-            border-radius: 50%;
-            transition: background-color 0.2s;
-        }
-        .clear-search:hover {
-            background-color: #f0f0f0;
-        }
         .dashboard-main {
             max-width: 1200px;
             margin: 0 auto;
@@ -365,7 +346,30 @@ $all_amenities = ['wifi', 'water', 'gas', 'parking', 'furnished', 'AC'];
             grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
             gap: 1.5rem;
         }
-
+        .tab-navigation {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            justify-content: center;
+        }
+        .tab-btn {
+            padding: 0.7rem 1.5rem;
+            border: 2px solid var(--primary);
+            background: transparent;
+            color: var(--primary);
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+        .tab-btn:hover {
+            background: var(--primary);
+            color: white;
+        }
         .property-card {
             background: var(--card-bg);
             border-radius: 12px;
@@ -455,18 +459,14 @@ $all_amenities = ['wifi', 'water', 'gas', 'parking', 'furnished', 'AC'];
             background: var(--primary);
             color: white;
         }
-        .btn-message {
-            background: var(--secondary);
-            color: white;
-        }
-        .btn-report {
+        .btn-save {
             background: var(--accent);
             color: #333;
         }
-        .btn-report:hover {
-            background: #e0a800;
+        .btn-save.saved {
+            background: var(--success);
+            color: white;
         }
-
         .homeowner-info {
             background: #f8f9fa;
             padding: 0.5rem;
@@ -531,34 +531,18 @@ $all_amenities = ['wifi', 'water', 'gas', 'parking', 'furnished', 'AC'];
                 <img src="Searching for a Home.png" alt="User Photo" style="width:40px; height:40px; border-radius:50%; object-fit:cover; display:block;">
             </div>
             <div class="profile-dropdown" id="profileDropdown">
-                <div class="profile-info">
-                    <div class="profile-name"><?php echo htmlspecialchars($user['first_name'] . ' ' . $user['last_name']); ?></div>
-                    <div class="profile-email"><?php echo htmlspecialchars($user['email']); ?></div>
-                </div>
-                <div class="profile-divider"></div>
-                <a href="messages.php"><i class="fas fa-comments"></i> Messages</a>
                 <a href="#" onclick="openSettings()"><i class="fas fa-cog"></i> Settings</a>
                 <a href="logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a>
             </div>
         </div>
     </nav>
     <main class="dashboard-main">
-        <div class="welcome-section">
-            <h2>Hello, <?php echo htmlspecialchars($user['first_name']); ?>!</h2>
-            <p>Welcome to your tenant dashboard. Browse available properties below.</p>
-        </div>
+        <div class="section-title">Available Properties (<?php echo count($properties); ?>)</div>
         
-        <div class="section-title">Available Homes (<?php echo count($properties); ?>)</div>
-        
-        <!-- Search Bar -->
-        <div class="search-bar">
-            <div class="search-input-group">
-                <i class="fas fa-search search-icon"></i>
-                <input type="text" id="locationSearch" placeholder="Search by location (city, address, etc.)" class="search-input">
-                <button onclick="clearSearch()" class="clear-search" id="clearSearchBtn" style="display: none;">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
+        <!-- Tab Navigation -->
+        <div class="tab-navigation">
+            <button class="tab-btn active" onclick="switchTab('available')">Available Homes</button>
+            <button class="tab-btn" onclick="switchTab('saved')">Saved Homes (<?php echo count($saved_properties); ?>)</button>
         </div>
         
         <div class="filters-bar">
@@ -628,8 +612,8 @@ $all_amenities = ['wifi', 'water', 'gas', 'parking', 'furnished', 'AC'];
             </div>
         </div>
 
-        <!-- Properties Section -->
-        <div class="property-grid">
+        <!-- Available Properties Section -->
+        <div class="property-grid" id="availableProperties">
             <?php if (empty($properties)): ?>
                 <div class="no-properties" style="grid-column: 1 / -1;">
                     <i class="fas fa-home"></i>
@@ -638,9 +622,7 @@ $all_amenities = ['wifi', 'water', 'gas', 'parking', 'furnished', 'AC'];
                 </div>
             <?php else: ?>
                 <?php foreach ($properties as $property): ?>
-                    <div class="property-card" data-property-id="<?php echo $property['id']; ?>"
-                         data-homeowner-id="<?php echo $property['homeowner_id']; ?>"
-                         data-price="<?php echo $property['rent']; ?>" 
+                    <div class="property-card" data-price="<?php echo $property['rent']; ?>" 
                          data-bedrooms="<?php echo $property['rooms']; ?>" 
                          data-tenant-type="<?php echo $property['family_bachelor_status']; ?>"
                          data-amenities="<?php echo strtolower(implode(',', $property['amenities'])); ?>">
@@ -682,11 +664,71 @@ $all_amenities = ['wifi', 'water', 'gas', 'parking', 'furnished', 'AC'];
                                 <button class="btn-contact" onclick="contactHomeowner(<?php echo $property['id']; ?>)">
                                     <i class="fas fa-phone"></i> Contact
                                 </button>
-                                <button class="btn-message" onclick="messageHomeowner(<?php echo $property['id']; ?>, '<?php echo $property['homeowner_name']; ?>')">
-                                    <i class="fas fa-comments"></i> Message
+                                <button class="btn-save <?php echo $property['saved'] ? 'saved' : ''; ?>" 
+                                        onclick="toggleSave(<?php echo $property['id']; ?>)">
+                                    <i class="fas fa-heart"></i> <?php echo $property['saved'] ? 'Saved' : 'Save'; ?>
                                 </button>
-                                <button class="btn-report" onclick="reportHomeowner(<?php echo $property['homeowner_id']; ?>)">
-                                    <i class="fas fa-flag"></i> Report
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
+
+        <!-- Saved Properties Section -->
+        <div class="property-grid" id="savedProperties" style="display: none;">
+            <?php if (empty($saved_properties)): ?>
+                <div class="no-properties" style="grid-column: 1 / -1;">
+                    <i class="fas fa-heart"></i>
+                    <h3>No saved properties</h3>
+                    <p>Save properties you like to see them here!</p>
+                </div>
+            <?php else: ?>
+                <?php foreach ($saved_properties as $property): ?>
+                    <div class="property-card" data-price="<?php echo $property['rent']; ?>" 
+                         data-bedrooms="<?php echo $property['rooms']; ?>" 
+                         data-tenant-type="<?php echo $property['family_bachelor_status']; ?>"
+                         data-amenities="<?php echo strtolower(implode(',', $property['amenities'])); ?>">
+                        <div class="property-info">
+                            <div class="property-title"><?php echo htmlspecialchars($property['name']); ?></div>
+                            <div class="property-location">
+                                <i class="fas fa-map-marker-alt"></i> 
+                                <?php echo htmlspecialchars($property['location']); ?>
+                            </div>
+                            <div class="property-meta">
+                                <div class="property-price">$<?php echo number_format($property['rent']); ?>/mo</div>
+                                <div class="property-rooms">
+                                    <span><i class="fas fa-bed"></i> <?php echo $property['rooms']; ?></span>
+                                    <span><i class="fas fa-bath"></i> <?php echo $property['baths']; ?></span>
+                                </div>
+                            </div>
+                            <?php if ($property['utility_bills'] > 0): ?>
+                                <div style="color: #666; font-size: 0.9rem;">
+                                    <i class="fas fa-bolt"></i> Utilities: $<?php echo number_format($property['utility_bills']); ?>/mo
+                                </div>
+                            <?php endif; ?>
+                            <div class="property-tags">
+                                <span class="tenant-status status-<?php echo $property['family_bachelor_status']; ?>">
+                                    <?php echo ucfirst($property['family_bachelor_status']); ?>
+                                </span>
+                                <?php if (!empty($property['amenities'])): ?>
+                                    <?php foreach ($property['amenities'] as $amenity): ?>
+                                        <span class="amenity-tag"><?php echo htmlspecialchars($amenity); ?></span>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </div>
+                            <div class="homeowner-info">
+                                <i class="fas fa-user"></i> <?php echo htmlspecialchars($property['homeowner_name']); ?>
+                                <?php if ($property['homeowner_phone']): ?>
+                                    <br><i class="fas fa-phone"></i> <?php echo htmlspecialchars($property['homeowner_phone']); ?>
+                                <?php endif; ?>
+                            </div>
+                            <div class="property-actions">
+                                <button class="btn-contact" onclick="contactHomeowner(<?php echo $property['id']; ?>)">
+                                    <i class="fas fa-phone"></i> Contact
+                                </button>
+                                <button class="btn-save saved" onclick="toggleSave(<?php echo $property['id']; ?>)">
+                                    <i class="fas fa-heart"></i> Saved
                                 </button>
                             </div>
                         </div>
@@ -707,14 +749,30 @@ $all_amenities = ['wifi', 'water', 'gas', 'parking', 'furnished', 'AC'];
             }
         }
 
-
+        // Tab functionality
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Show/hide property sections
+            const availableSection = document.getElementById('availableProperties');
+            const savedSection = document.getElementById('savedProperties');
+            
+            if (tabName === 'available') {
+                availableSection.style.display = 'grid';
+                savedSection.style.display = 'none';
+            } else {
+                availableSection.style.display = 'none';
+                savedSection.style.display = 'grid';
+            }
+        }
 
         // Filter properties
         function filterProperties() {
             const priceRange = document.getElementById('priceRange').value;
             const bedrooms = document.getElementById('bedrooms').value;
             const tenantType = document.getElementById('tenantType').value;
-            const locationSearch = document.getElementById('locationSearch').value.toLowerCase();
             
             // Get selected amenities
             const selectedAmenities = [];
@@ -759,24 +817,8 @@ $all_amenities = ['wifi', 'water', 'gas', 'parking', 'furnished', 'AC'];
                     }
                 }
                 
-                // Location search filter
-                if (locationSearch) {
-                    const propertyLocation = property.querySelector('.property-location').textContent.toLowerCase();
-                    if (!propertyLocation.includes(locationSearch)) {
-                        show = false;
-                    }
-                }
-                
                 property.style.display = show ? 'flex' : 'none';
             });
-            
-            // Show/hide clear search button
-            const clearBtn = document.getElementById('clearSearchBtn');
-            if (locationSearch) {
-                clearBtn.style.display = 'block';
-            } else {
-                clearBtn.style.display = 'none';
-            }
         }
 
         // Add event listeners to filters
@@ -789,65 +831,90 @@ $all_amenities = ['wifi', 'water', 'gas', 'parking', 'furnished', 'AC'];
             checkbox.addEventListener('change', filterProperties);
         });
 
-        // Add event listener to search input
-        document.getElementById('locationSearch').addEventListener('input', filterProperties);
-
-        // Clear search function
-        function clearSearch() {
-            document.getElementById('locationSearch').value = '';
-            filterProperties();
-        }
-
         // Contact homeowner
         function contactHomeowner(propertyId) {
             alert('Contact functionality will be implemented soon! Property ID: ' + propertyId);
         }
 
-        // Message homeowner
-        function messageHomeowner(propertyId, homeownerName) {
-            console.log('messageHomeowner called with:', { propertyId, homeownerName });
+        // Toggle save property
+        async function toggleSave(propertyId) {
+            const button = event.target.closest('.btn-save');
+            const isCurrentlySaved = button.classList.contains('saved');
+            const action = isCurrentlySaved ? 'unsave' : 'save';
             
-            // Get homeowner ID from the property data
-            const propertyCard = document.querySelector(`[data-property-id="${propertyId}"]`);
-            if (!propertyCard) {
-                console.error('Property card not found for ID:', propertyId);
-                alert('Property information not found');
-                return;
+            console.log('ToggleSave called:', { propertyId, action, isCurrentlySaved });
+            
+            try {
+                const requestData = {
+                    action: action,
+                    home_id: propertyId
+                };
+                console.log('Sending request:', requestData);
+                
+                const response = await fetch('api/save-property.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestData)
+                });
+                
+                console.log('Response status:', response.status);
+                const result = await response.json();
+                console.log('Response result:', result);
+                
+                if (result.success) {
+                    // Update button state
+                    if (action === 'save') {
+                        button.classList.add('saved');
+                        button.innerHTML = '<i class="fas fa-heart"></i> Saved';
+                    } else {
+                        button.classList.remove('saved');
+                        button.innerHTML = '<i class="fas fa-heart"></i> Save';
+                    }
+                    
+                    // Show success message
+                    showMessage(result.message, 'success');
+                    
+                    // Refresh saved properties tab if needed
+                    if (document.getElementById('savedProperties').style.display !== 'none') {
+                        location.reload(); // Simple refresh for now
+                    }
+                } else {
+                    showMessage(result.message, 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('Failed to save property. Please try again.', 'error');
             }
-            
-            const homeownerId = propertyCard.dataset.homeownerId;
-            console.log('Found homeowner ID:', homeownerId);
-            
-            if (!homeownerId) {
-                console.error('Homeowner ID not found in property card data');
-                alert('Homeowner information not found');
-                return;
-            }
-            
-            // Store the property info in sessionStorage for the messages page
-            sessionStorage.setItem('messagePropertyId', propertyId);
-            sessionStorage.setItem('messageHomeownerId', homeownerId);
-            sessionStorage.setItem('messageHomeownerName', homeownerName);
-            
-            console.log('Stored in sessionStorage:', {
-                messagePropertyId: propertyId,
-                messageHomeownerId: homeownerId,
-                messageHomeownerName: homeownerName
-            });
-            
-            // Redirect to messages page
-            window.location.href = 'messages.php';
         }
-
-        // Report homeowner
-        function reportHomeowner(homeownerId) {
-            if (confirm('Are you sure you want to report this homeowner? This action will be reviewed by our admin team.')) {
-                // Redirect to report-user.php with the homeowner ID and type
-                window.location.href = `report-user.php?reported_user_id=${homeownerId}&reported_user_type=homeowner`;
-            }
+        
+        // Show message function
+        function showMessage(message, type) {
+            // Create message element
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.textContent = message;
+            messageDiv.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 12px 20px;
+                border-radius: 6px;
+                color: white;
+                font-weight: 600;
+                z-index: 1000;
+                background: ${type === 'success' ? '#28a745' : '#dc3545'};
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            `;
+            
+            document.body.appendChild(messageDiv);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 3000);
         }
-
-
 
         // Settings placeholder
         function openSettings() {

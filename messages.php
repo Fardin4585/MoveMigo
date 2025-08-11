@@ -375,7 +375,17 @@ $unread_count = $messaging->getUnreadCount($user['user_id'], $user['user_type'])
             const openConversationId = sessionStorage.getItem('openConversationId');
             const openConversationUser = sessionStorage.getItem('openConversationUser');
             
+            console.log('DOMContentLoaded - sessionStorage data:', {
+                propertyId,
+                homeownerId,
+                homeownerName,
+                openConversationId,
+                openConversationUser
+            });
+            
             if (propertyId && homeownerId && homeownerName) {
+                console.log('Starting new conversation with:', { propertyId, homeownerId, homeownerName });
+                
                 // Show new conversation option
                 const newConversationItem = document.getElementById('new-conversation-item');
                 const noConversationsItem = document.getElementById('no-conversations-item');
@@ -390,6 +400,7 @@ $unread_count = $messaging->getUnreadCount($user['user_id'], $user['user_type'])
                     
                     // Add click handler for new conversation
                     newConversationItem.addEventListener('click', function() {
+                        console.log('New conversation item clicked');
                         startNewConversation(propertyId, homeownerId, homeownerName);
                         
                         // Update active state
@@ -436,9 +447,24 @@ $unread_count = $messaging->getUnreadCount($user['user_id'], $user['user_type'])
         });
 
         function startNewConversation(propertyId, homeownerId, homeownerName) {
+            console.log('startNewConversation called with:', { propertyId, homeownerId, homeownerName });
+            
             // Set the current receiver info
             currentReceiverId = parseInt(homeownerId);
             currentReceiverType = 'homeowner';
+            
+            console.log('Set current receiver:', { currentReceiverId, currentReceiverType });
+            
+            // Store the property info globally for the sendMessage function
+            window.lastPropertyId = propertyId;
+            window.lastHomeownerId = homeownerId;
+            window.lastHomeownerName = homeownerName;
+            
+            console.log('Stored global variables:', {
+                lastPropertyId: window.lastPropertyId,
+                lastHomeownerId: window.lastHomeownerId,
+                lastHomeownerName: window.lastHomeownerName
+            });
             
             // Update chat title
             document.getElementById('chat-title').textContent = `New Message to ${homeownerName}`;
@@ -546,12 +572,27 @@ $unread_count = $messaging->getUnreadCount($user['user_id'], $user['user_type'])
             const messageInput = document.getElementById('message-input');
             const content = messageInput.value.trim();
             if (!content) return;
+            
+            console.log('sendMessage called with content:', content);
+            console.log('Current state:', { currentConversationId, currentReceiverId, currentReceiverType });
+            
             // If we don't have a conversation ID, this is a new conversation
             if (!currentConversationId) {
+                console.log('Creating new conversation...');
+                
                 // Use the propertyId and homeownerId from the new conversation context
                 const propertyId = sessionStorage.getItem('messagePropertyId') || window.lastPropertyId;
                 const homeownerId = sessionStorage.getItem('messageHomeownerId') || window.lastHomeownerId;
                 const homeownerName = sessionStorage.getItem('messageHomeownerName') || window.lastHomeownerName;
+                
+                console.log('Retrieved data:', { propertyId, homeownerId, homeownerName });
+                
+                if (!homeownerId) {
+                    console.error('Homeowner ID not found');
+                    alert('Error: Homeowner information not found. Please try again.');
+                    return;
+                }
+                
                 const data = {
                     action: 'send_message',
                     receiver_id: currentReceiverId || homeownerId,
@@ -559,6 +600,9 @@ $unread_count = $messaging->getUnreadCount($user['user_id'], $user['user_type'])
                     content: content,
                     home_id: propertyId ? parseInt(propertyId) : null
                 };
+                
+                console.log('Sending data to API:', data);
+                
                 fetch('api/messaging.php', {
                     method: 'POST',
                     headers: {
@@ -569,9 +613,11 @@ $unread_count = $messaging->getUnreadCount($user['user_id'], $user['user_type'])
                 })
                 .then(response => response.json())
                 .then(data => {
+                    console.log('API response:', data);
                     if (data.success) {
                         messageInput.value = '';
                         currentConversationId = data.conversation_id;
+                        console.log('New conversation created with ID:', currentConversationId);
                         // After first message, load the conversation so user can continue chatting
                         loadConversation(currentConversationId, data.receiver_id || homeownerId, 'homeowner');
                     } else {
@@ -584,6 +630,8 @@ $unread_count = $messaging->getUnreadCount($user['user_id'], $user['user_type'])
                     alert('Error sending message');
                 });
             } else {
+                console.log('Sending message to existing conversation:', currentConversationId);
+                
                 // Existing conversation
                 const data = {
                     action: 'send_message',
