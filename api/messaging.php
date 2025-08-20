@@ -54,14 +54,14 @@ try {
                             echo json_encode(['error' => 'Conversation ID is required']);
                             exit();
                         }
-                        
-                        $conversation_id = (int)$_GET['conversation_id'];
-                        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 50;
-                        $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
-                        
+
+                        $conversation_id = (int) $_GET['conversation_id'];
+                        $limit = isset($_GET['limit']) ? (int) $_GET['limit'] : 50;
+                        $offset = isset($_GET['offset']) ? (int) $_GET['offset'] : 0;
+
                         // Mark messages as read when user views them
                         $messaging->markMessagesAsRead($conversation_id, $user['user_id'], $user['user_type']);
-                        
+
                         $messages = $messaging->getMessages($conversation_id, $limit, $offset);
                         echo json_encode(['success' => true, 'messages' => $messages]);
                         break;
@@ -79,10 +79,10 @@ try {
                             echo json_encode(['error' => 'Conversation ID is required']);
                             exit();
                         }
-                        
-                        $conversation_id = (int)$_GET['conversation_id'];
+
+                        $conversation_id = (int) $_GET['conversation_id'];
                         $details = $messaging->getConversationDetails($conversation_id);
-                        
+
                         if ($details) {
                             echo json_encode(['success' => true, 'conversation' => $details]);
                         } else {
@@ -114,10 +114,10 @@ try {
                             exit();
                         }
 
-                        $receiver_id = (int)$input['receiver_id'];
+                        $receiver_id = (int) $input['receiver_id'];
                         $receiver_type = $input['receiver_type'];
                         $content = $input['content'];
-                        $home_id = isset($input['home_id']) ? (int)$input['home_id'] : null;
+                        $home_id = isset($input['home_id']) ? (int) $input['home_id'] : null;
 
                         // Validate receiver type
                         if (!in_array($receiver_type, ['tenant', 'homeowner'])) {
@@ -144,7 +144,7 @@ try {
 
                         // Get or create conversation
                         $conversation_result = $messaging->getOrCreateConversation($tenant_id, $homeowner_id, $home_id);
-                        
+
                         if (!$conversation_result['success']) {
                             http_response_code(500);
                             echo json_encode(['error' => $conversation_result['message']]);
@@ -165,7 +165,7 @@ try {
 
                         if ($result['success']) {
                             echo json_encode([
-                                'success' => true, 
+                                'success' => true,
                                 'message' => 'Message sent successfully',
                                 'message_id' => $result['message_id'],
                                 'conversation_id' => $conversation_id
@@ -174,6 +174,48 @@ try {
                             http_response_code(500);
                             echo json_encode(['error' => $result['message']]);
                         }
+                        break;
+                    case 'get_or_create_conversation':
+                        // Validate inputs
+                        if (!isset($input['receiver_id']) || !isset($input['receiver_type'])) {
+                            http_response_code(400);
+                            echo json_encode(['error' => 'Receiver ID and receiver type are required']);
+                            exit();
+                        }
+
+                        $receiver_id = (int) $input['receiver_id'];
+                        $receiver_type = $input['receiver_type'];
+
+                        if (!in_array($receiver_type, ['tenant', 'homeowner'])) {
+                            http_response_code(400);
+                            echo json_encode(['error' => 'Invalid receiver type']);
+                            exit();
+                        }
+
+                        // Determine tenant and homeowner IDs based on current user
+                        if ($user['user_type'] === 'tenant') {
+                            $tenant_id = $user['user_id'];
+                            $homeowner_id = $receiver_id;
+                        } else {
+                            $tenant_id = $receiver_id;
+                            $homeowner_id = $user['user_id'];
+                        }
+
+                        // Call getOrCreateConversation to get or create a conversation ID
+                        $conversation_result = $messaging->getOrCreateConversation($tenant_id, $homeowner_id, null);
+
+                        if ($conversation_result['success']) {
+                            echo json_encode([
+                                'success' => true,
+                                'conversation_id' => $conversation_result['conversation_id']
+                            ]);
+                        } else {
+                            http_response_code(500);
+                            echo json_encode(['error' => $conversation_result['message']]);
+                        }
+
+                        error_log("get_or_create_conversation called: receiver_id=$receiver_id, receiver_type=$receiver_type");
+
                         break;
 
                     default:
@@ -187,6 +229,7 @@ try {
             }
             break;
 
+
         default:
             http_response_code(405);
             echo json_encode(['error' => 'Method not allowed']);
@@ -196,4 +239,4 @@ try {
     http_response_code(500);
     echo json_encode(['error' => 'Internal server error: ' . $e->getMessage()]);
 }
-?> 
+?>
