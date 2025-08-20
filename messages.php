@@ -24,6 +24,7 @@ $unread_count = $messaging->getUnreadCount($user['user_id'], $user['user_type'])
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -65,7 +66,7 @@ $unread_count = $messaging->getUnreadCount($user['user_id'], $user['user_type'])
             background: var(--white);
             padding: 20px;
             border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             margin-bottom: 20px;
             display: flex;
             justify-content: space-between;
@@ -104,7 +105,7 @@ $unread_count = $messaging->getUnreadCount($user['user_id'], $user['user_type'])
         .conversations-list {
             background: var(--white);
             border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             overflow: hidden;
         }
 
@@ -169,7 +170,7 @@ $unread_count = $messaging->getUnreadCount($user['user_id'], $user['user_type'])
         .chat-container {
             background: var(--white);
             border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             display: flex;
             flex-direction: column;
         }
@@ -279,7 +280,7 @@ $unread_count = $messaging->getUnreadCount($user['user_id'], $user['user_type'])
                 grid-template-columns: 1fr;
                 height: auto;
             }
-            
+
             .conversations-list {
                 max-height: 300px;
                 overflow-y: auto;
@@ -287,16 +288,19 @@ $unread_count = $messaging->getUnreadCount($user['user_id'], $user['user_type'])
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="header">
             <h1><i class="fas fa-comments"></i> Messages</h1>
             <div>
                 <?php if (
-                    $unread_count > 0): ?>
+                    $unread_count > 0
+                ): ?>
                     <span class="unread-badge"><?php echo $unread_count; ?></span>
                 <?php endif; ?>
-                <a href="<?php echo $user['user_type'] === 'tenant' ? 'tenant-dashboard.php' : 'homeowner-dashboard.php'; ?>" class="back-btn">
+                <a href="<?php echo $user['user_type'] === 'tenant' ? 'tenant-dashboard.php' : 'homeowner-dashboard.php'; ?>"
+                    class="back-btn">
                     <i class="fas fa-arrow-left"></i> Back to Dashboard
                 </a>
             </div>
@@ -314,14 +318,15 @@ $unread_count = $messaging->getUnreadCount($user['user_id'], $user['user_type'])
                     </div>
                     <div class="conversation-item" id="no-conversations-item">
                         <div class="conversation-name">No conversations yet</div>
-                        <div class="conversation-last-message">Start a conversation by messaging a property owner or tenant</div>
+                        <div class="conversation-last-message">Start a conversation by messaging a property owner or tenant
+                        </div>
                     </div>
                 <?php else: ?>
                     <?php foreach ($conversations as $conversation): ?>
-                        <div class="conversation-item <?php echo $conversation['unread_count'] > 0 ? 'unread' : ''; ?>" 
-                             data-conversation-id="<?php echo $conversation['id']; ?>"
-                             data-other-user-id="<?php echo $user['user_type'] === 'tenant' ? $conversation['homeowner_id'] : $conversation['tenant_id']; ?>"
-                             data-other-user-type="<?php echo $user['user_type'] === 'tenant' ? 'homeowner' : 'tenant'; ?>">
+                        <div class="conversation-item <?php echo $conversation['unread_count'] > 0 ? 'unread' : ''; ?>"
+                            data-conversation-id="<?php echo $conversation['id']; ?>"
+                            data-other-user-id="<?php echo $user['user_type'] === 'tenant' ? $conversation['homeowner_id'] : $conversation['tenant_id']; ?>"
+                            data-other-user-type="<?php echo $user['user_type'] === 'tenant' ? 'homeowner' : 'tenant'; ?>">
                             <div class="conversation-name">
                                 <?php echo htmlspecialchars($conversation['other_user_name']); ?>
                                 <?php if ($conversation['unread_count'] > 0): ?>
@@ -352,7 +357,8 @@ $unread_count = $messaging->getUnreadCount($user['user_id'], $user['user_type'])
                     </div>
                 </div>
                 <div class="chat-input" id="chat-input" style="display: none;">
-                    <textarea class="message-input" id="message-input" placeholder="Type your message..." rows="1"></textarea>
+                    <textarea class="message-input" id="message-input" placeholder="Type your message..."
+                        rows="1"></textarea>
                     <button class="send-btn" id="send-btn">
                         <i class="fas fa-paper-plane"></i>
                     </button>
@@ -361,314 +367,235 @@ $unread_count = $messaging->getUnreadCount($user['user_id'], $user['user_type'])
         </div>
     </div>
 
+
     <script>
+        const currentUserId = <?php echo $user['user_id']; ?>;
+        const currentUserType = '<?php echo $user['user_type']; ?>';
+        const sessionToken = '<?php echo $_SESSION['session_token'] ?? ''; ?>';
+
         let currentConversationId = null;
         let currentReceiverId = null;
         let currentReceiverType = null;
-        const sessionToken = '<?php echo $_SESSION['session_token'] ?? ''; ?>';
 
-        // Check if user came from clicking a message button or opening a conversation
-        window.addEventListener('DOMContentLoaded', function() {
+        const chatMessages = document.getElementById('chat-messages');
+        const messageInput = document.getElementById('message-input');
+        const sendBtn = document.getElementById('send-btn');
+
+        // ------------------- On Page Load -------------------
+        window.addEventListener('DOMContentLoaded', () => {
             const propertyId = sessionStorage.getItem('messagePropertyId');
             const homeownerId = sessionStorage.getItem('messageHomeownerId');
             const homeownerName = sessionStorage.getItem('messageHomeownerName');
             const openConversationId = sessionStorage.getItem('openConversationId');
             const openConversationUser = sessionStorage.getItem('openConversationUser');
-            
-            console.log('DOMContentLoaded - sessionStorage data:', {
-                propertyId,
-                homeownerId,
-                homeownerName,
-                openConversationId,
-                openConversationUser
-            });
-            
+
+            // Start a new conversation directly from property page
             if (propertyId && homeownerId && homeownerName) {
-                console.log('Starting new conversation with:', { propertyId, homeownerId, homeownerName });
-                
-                // Show new conversation option
-                const newConversationItem = document.getElementById('new-conversation-item');
-                const noConversationsItem = document.getElementById('no-conversations-item');
-                
-                if (newConversationItem && noConversationsItem) {
-                    newConversationItem.style.display = 'block';
-                    noConversationsItem.style.display = 'none';
-                    
-                    // Update the new conversation item
-                    newConversationItem.querySelector('.conversation-name').textContent = `Message ${homeownerName}`;
-                    newConversationItem.querySelector('.conversation-last-message').textContent = 'Start a new conversation about this property';
-                    
-                    // Add click handler for new conversation
-                    newConversationItem.addEventListener('click', function() {
-                        console.log('New conversation item clicked');
-                        startNewConversation(propertyId, homeownerId, homeownerName);
-                        
-                        // Update active state
-                        document.querySelectorAll('.conversation-item').forEach(i => i.classList.remove('active'));
-                        this.classList.add('active');
-                    });
-                }
-                
-                // Clear session storage
+                startNewConversation(propertyId, homeownerId, homeownerName);
                 sessionStorage.removeItem('messagePropertyId');
                 sessionStorage.removeItem('messageHomeownerId');
                 sessionStorage.removeItem('messageHomeownerName');
             }
-            
-            // Handle opening existing conversation from homeowner dashboard
+
+            // Auto-open an existing conversation (from dashboard)
             if (openConversationId && openConversationUser) {
-                // Find the conversation item and click it
-                const conversationItem = document.querySelector(`[data-conversation-id="${openConversationId}"]`);
+                const conversationItem = document.querySelector(
+                    `[data-conversation-id="${openConversationId}"]`
+                );
                 if (conversationItem) {
-                    conversationItem.click();
+                    openConversation(conversationItem);
                 }
-                
-                // Clear session storage
                 sessionStorage.removeItem('openConversationId');
                 sessionStorage.removeItem('openConversationUser');
             }
         });
 
-        // Load conversations
-        document.querySelectorAll('.conversation-item').forEach(item => {
-            item.addEventListener('click', function() {
-                const conversationId = this.dataset.conversationId;
-                const otherUserId = this.dataset.otherUserId;
-                const otherUserType = this.dataset.otherUserType;
-                
-                if (conversationId) {
-                    loadConversation(conversationId, otherUserId, otherUserType);
-                    
-                    // Update active state
-                    document.querySelectorAll('.conversation-item').forEach(i => i.classList.remove('active'));
-                    this.classList.add('active');
-                }
-            });
+        // ------------------- Event Delegation -------------------
+        document.querySelector('.conversations-list').addEventListener('click', e => {
+            const item = e.target.closest('.conversation-item');
+            if (!item) return;
+            openConversation(item);
         });
 
+        // ------------------- Open Existing or New Conversation -------------------
+        function openConversation(item) {
+            document.querySelectorAll('.conversation-item').forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+
+            const conversationId = item.dataset.conversationId;
+            const otherUserId = item.dataset.otherUserId;
+            const otherUserType = item.dataset.otherUserType;
+
+            if (conversationId) {
+                // Existing conversation
+                currentConversationId = conversationId;
+                currentReceiverId = otherUserId;
+                currentReceiverType = otherUserType;
+
+                document.getElementById('chat-title').textContent =
+                    `Chat with ${item.querySelector('.conversation-name').textContent.trim()}`;
+                document.getElementById('chat-input').style.display = 'flex';
+                document.getElementById('chat-messages').innerHTML =
+                    '<div class="no-conversation">Loading messages...</div>';
+
+                loadMessages(conversationId);
+            } else if (otherUserId && otherUserType) {
+                // Brand new conversation
+                startNewConversation(null, otherUserId, item.querySelector('.conversation-name').textContent.trim());
+            }
+        }
+
+        // ------------------- Start New Conversation -------------------
         function startNewConversation(propertyId, homeownerId, homeownerName) {
-            console.log('startNewConversation called with:', { propertyId, homeownerId, homeownerName });
-            
-            // Set the current receiver info
+            currentConversationId = null;
             currentReceiverId = parseInt(homeownerId);
             currentReceiverType = 'homeowner';
-            
-            console.log('Set current receiver:', { currentReceiverId, currentReceiverType });
-            
-            // Store the property info globally for the sendMessage function
-            window.lastPropertyId = propertyId;
-            window.lastHomeownerId = homeownerId;
-            window.lastHomeownerName = homeownerName;
-            
-            console.log('Stored global variables:', {
-                lastPropertyId: window.lastPropertyId,
-                lastHomeownerId: window.lastHomeownerId,
-                lastHomeownerName: window.lastHomeownerName
-            });
-            
-            // Update chat title
+
             document.getElementById('chat-title').textContent = `New Message to ${homeownerName}`;
-            
-            // Show chat input
             document.getElementById('chat-input').style.display = 'flex';
-            
-            // Clear messages area
-            document.getElementById('chat-messages').innerHTML = `
-                <div class="no-conversation">
-                    <i class="fas fa-comments" style="font-size: 3rem; margin-bottom: 10px;"></i>
-                    <div>Start a conversation with ${homeownerName} about this property</div>
-                </div>
-            `;
-        }
+            chatMessages.innerHTML = `
+        <div class="no-conversation">
+            <i class="fas fa-comments" style="font-size: 3rem; margin-bottom: 10px;"></i>
+            <div>Start a conversation with ${homeownerName} about this property</div>
+        </div>
+    `;
 
-        function loadConversation(conversationId, receiverId, receiverType) {
-            currentConversationId = conversationId;
-            currentReceiverId = receiverId;
-            currentReceiverType = receiverType;
-            
-            // Update chat title
-            const conversationItem = document.querySelector(`[data-conversation-id="${conversationId}"]`);
-            const userName = conversationItem.querySelector('.conversation-name').textContent.split(' ')[0];
-            document.getElementById('chat-title').textContent = `Chat with ${userName}`;
-            
-            // Show chat input
-            document.getElementById('chat-input').style.display = 'flex';
-            
-            // Load messages
-            loadMessages(conversationId);
-        }
-
-        function loadMessages(conversationId) {
-            fetch(`api/messaging.php?action=messages&conversation_id=${conversationId}`, {
+            fetch('api/messaging.php', {
+                method: 'POST',
                 headers: {
+                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${sessionToken}`
-                }
+                },
+                body: JSON.stringify({
+                    action: 'get_or_create_conversation',
+                    receiver_id: homeownerId,
+                    receiver_type: 'homeowner',
+                    property_id: propertyId
+                })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    displayMessages(data.messages);
-                } else {
-                    console.error('Error loading messages:', data.error);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-            });
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        currentConversationId = data.conversation_id;
+                        loadMessages(currentConversationId);
+                    } else {
+                        alert('Failed to start conversation: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(err => {
+                    console.error('Error starting conversation:', err);
+                    alert('Error starting conversation');
+                });
         }
 
+        // ------------------- Load Messages -------------------
+        function loadMessages(conversationId) {
+            chatMessages.innerHTML = `
+        <div class="no-conversation">
+            <i class="fas fa-spinner fa-spin" style="font-size: 2rem;"></i>
+            <div>Loading messages...</div>
+        </div>
+    `;
+
+            fetch(`api/messaging.php?action=messages&conversation_id=${conversationId}`, {
+                headers: { 'Authorization': `Bearer ${sessionToken}` }
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        displayMessages(data.messages);
+                    } else {
+                        chatMessages.innerHTML = `<div class="no-conversation">Error loading messages</div>`;
+                    }
+                })
+                .catch(err => {
+                    console.error('Error:', err);
+                    chatMessages.innerHTML = `<div class="no-conversation">Error loading messages</div>`;
+                });
+        }
+
+        // ------------------- Display Messages -------------------
         function displayMessages(messages) {
-            const chatMessages = document.getElementById('chat-messages');
-            const currentUserId = <?php echo $user['user_id']; ?>;
-            const currentUserType = '<?php echo $user['user_type']; ?>';
-            
-            if (messages.length === 0) {
+            chatMessages.innerHTML = '';
+
+            if (!messages || messages.length === 0) {
                 chatMessages.innerHTML = '<div class="no-conversation">No messages yet. Start the conversation!</div>';
                 return;
             }
-            
-            chatMessages.innerHTML = '';
-            
-            // Reverse messages to show oldest first
-            messages.reverse().forEach(message => {
-                const isSent = message.sender_id == currentUserId && message.sender_type === currentUserType;
-                const messageDiv = document.createElement('div');
-                messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
-                
-                const time = new Date(message.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                
-                messageDiv.innerHTML = `
-                    <div class="message-content">${message.content}</div>
-                    <div class="message-time">${time}</div>
-                `;
-                
-                chatMessages.appendChild(messageDiv);
+
+            messages.reverse().forEach(msg => {
+                const isSent = msg.sender_id == currentUserId && msg.sender_type === currentUserType;
+                const msgDiv = document.createElement('div');
+                msgDiv.className = `message ${isSent ? 'sent' : 'received'}`;
+
+                const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                msgDiv.innerHTML = `
+            <div class="message-content">${msg.content}</div>
+            <div class="message-time">${time}</div>
+        `;
+                chatMessages.appendChild(msgDiv);
             });
-            
-            // Scroll to bottom
+
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
-        // Send message
-        document.getElementById('send-btn').addEventListener('click', sendMessage);
-        document.getElementById('message-input').addEventListener('keypress', function(e) {
+        // ------------------- Send Message -------------------
+        function sendMessage() {
+            const content = messageInput.value.trim();
+            if (!content) return;
+
+            if (!currentConversationId || !currentReceiverId || !currentReceiverType) {
+                console.error('Missing conversation information');
+                return;
+            }
+
+            fetch('api/messaging.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${sessionToken}`
+                },
+                body: JSON.stringify({
+                    action: 'send_message',
+                    conversation_id: currentConversationId,
+                    sender_id: currentUserId,
+                    sender_type: currentUserType,
+                    receiver_id: currentReceiverId,
+                    receiver_type: currentReceiverType,
+                    content: content
+                })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        messageInput.value = '';
+                        loadMessages(currentConversationId);
+                    } else {
+                        alert('Error sending message: ' + data.error);
+                    }
+                })
+                .catch(err => {
+                    console.error('Error sending message:', err);
+                    alert('Error sending message');
+                });
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', e => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 sendMessage();
             }
         });
 
-        // Debug function to check current state
-        function debugState() {
-            console.log('Current state:', {
-                conversationId: currentConversationId,
-                receiverId: currentReceiverId,
-                receiverType: currentReceiverType,
-                sessionToken: sessionToken ? 'Present' : 'Missing'
-            });
-        }
-
-        function sendMessage() {
-            const messageInput = document.getElementById('message-input');
-            const content = messageInput.value.trim();
-            if (!content) return;
-            
-            console.log('sendMessage called with content:', content);
-            console.log('Current state:', { currentConversationId, currentReceiverId, currentReceiverType });
-            
-            // If we don't have a conversation ID, this is a new conversation
-            if (!currentConversationId) {
-                console.log('Creating new conversation...');
-                
-                // Use the propertyId and homeownerId from the new conversation context
-                const propertyId = sessionStorage.getItem('messagePropertyId') || window.lastPropertyId;
-                const homeownerId = sessionStorage.getItem('messageHomeownerId') || window.lastHomeownerId;
-                const homeownerName = sessionStorage.getItem('messageHomeownerName') || window.lastHomeownerName;
-                
-                console.log('Retrieved data:', { propertyId, homeownerId, homeownerName });
-                
-                if (!homeownerId) {
-                    console.error('Homeowner ID not found');
-                    alert('Error: Homeowner information not found. Please try again.');
-                    return;
-                }
-                
-                const data = {
-                    action: 'send_message',
-                    receiver_id: currentReceiverId || homeownerId,
-                    receiver_type: currentReceiverType || 'homeowner',
-                    content: content,
-                    home_id: propertyId ? parseInt(propertyId) : null
-                };
-                
-                console.log('Sending data to API:', data);
-                
-                fetch('api/messaging.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${sessionToken}`
-                    },
-                    body: JSON.stringify(data)
-                })
-                .then(response => response.json())
-                .then(data => {
-                    console.log('API response:', data);
-                    if (data.success) {
-                        messageInput.value = '';
-                        currentConversationId = data.conversation_id;
-                        console.log('New conversation created with ID:', currentConversationId);
-                        // After first message, load the conversation so user can continue chatting
-                        loadConversation(currentConversationId, data.receiver_id || homeownerId, 'homeowner');
-                    } else {
-                        console.error('Error sending message:', data.error);
-                        alert('Error sending message: ' + data.error);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error sending message');
-                });
-            } else {
-                console.log('Sending message to existing conversation:', currentConversationId);
-                
-                // Existing conversation
-                const data = {
-                    action: 'send_message',
-                    receiver_id: currentReceiverId,
-                    receiver_type: currentReceiverType,
-                    content: content
-                };
-                fetch('api/messaging.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${sessionToken}`
-                    },
-                    body: JSON.stringify(data)
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        messageInput.value = '';
-                        loadMessages(currentConversationId);
-                    } else {
-                        console.error('Error sending message:', data.error);
-                        alert('Error sending message: ' + data.error);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error sending message');
-                });
-            }
-        }
-
         // Auto-resize textarea
-        document.getElementById('message-input').addEventListener('input', function() {
+        messageInput.addEventListener('input', function () {
             this.style.height = 'auto';
             this.style.height = Math.min(this.scrollHeight, 100) + 'px';
         });
     </script>
+
 </body>
-</html> 
+
+</html>
