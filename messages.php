@@ -470,7 +470,7 @@ $unread_count = $messaging->getUnreadCount($user['user_id'], $user['user_type'])
                     action: 'get_or_create_conversation',
                     receiver_id: homeownerId,
                     receiver_type: 'homeowner',
-                    property_id: propertyId
+                    home_id: propertyId || null
                 })
             })
                 .then(res => res.json())
@@ -559,10 +559,7 @@ $unread_count = $messaging->getUnreadCount($user['user_id'], $user['user_type'])
                 body: JSON.stringify({
                     action: 'send_message',
                     conversation_id: currentConversationId,
-                    sender_id: currentUserId,
-                    sender_type: currentUserType,
-                    receiver_id: currentReceiverId,
-                    receiver_type: currentReceiverType,
+                    // server derives sender/receiver from session and conversation
                     content: content
                 })
             })

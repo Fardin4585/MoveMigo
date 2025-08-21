@@ -682,7 +682,7 @@ $all_amenities = ['wifi', 'water', 'gas', 'parking', 'furnished', 'AC'];
                                 <button class="btn-contact" onclick="contactHomeowner(<?php echo $property['id']; ?>)">
                                     <i class="fas fa-phone"></i> Contact
                                 </button>
-                                <button class="btn-message" onclick="messageHomeowner(<?php echo $property['id']; ?>, '<?php echo $property['homeowner_name']; ?>')">
+                                <button class="btn-message" type="button" data-homeowner-name=<?php echo json_encode($property['homeowner_name']); ?> onclick="messageHomeowner(<?php echo $property['id']; ?>, <?php echo json_encode($property['homeowner_name']); ?>)">
                                     <i class="fas fa-comments"></i> Message
                                 </button>
                                 <button class="btn-report" onclick="reportHomeowner(<?php echo $property['homeowner_id']; ?>)">
@@ -836,8 +836,23 @@ $all_amenities = ['wifi', 'water', 'gas', 'parking', 'furnished', 'AC'];
             });
             
             // Redirect to messages page
-            window.location.href = 'messages.php';
+            window.location.assign('messages.php');
         }
+        // Also delegate clicks to support environments where inline onclick may be blocked
+        document.addEventListener('click', function (e) {
+            const btn = e.target.closest('.btn-message');
+            if (!btn) return;
+            const card = btn.closest('.property-card');
+            if (!card) return;
+            const propertyId = parseInt(card.dataset.propertyId);
+            const homeownerName = btn.getAttribute('data-homeowner-name') || '';
+            try {
+                messageHomeowner(propertyId, homeownerName);
+            } catch (err) {
+                console.error('Failed to trigger message flow:', err);
+                alert('Unable to start message. Please refresh and try again.');
+            }
+        });
 
         // Report homeowner
         function reportHomeowner(homeownerId) {

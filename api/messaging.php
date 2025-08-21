@@ -108,60 +108,103 @@ try {
                 switch ($input['action']) {
                     case 'send_message':
                         // Send a message
-                        if (!isset($input['receiver_id']) || !isset($input['receiver_type']) || !isset($input['content'])) {
+                        if (!isset($input['content'])) {
                             http_response_code(400);
-                            echo json_encode(['error' => 'Receiver ID, receiver type, and content are required']);
+                            echo json_encode(['error' => 'Message content is required']);
                             exit();
                         }
 
-                        $receiver_id = (int) $input['receiver_id'];
-                        $receiver_type = $input['receiver_type'];
                         $content = $input['content'];
-                        $home_id = isset($input['home_id']) ? (int) $input['home_id'] : null;
-
-                        // Validate receiver type
-                        if (!in_array($receiver_type, ['tenant', 'homeowner'])) {
-                            http_response_code(400);
-                            echo json_encode(['error' => 'Invalid receiver type']);
-                            exit();
+                        $conversation_id = isset($input['conversation_id']) ? (int) $input['conversation_id'] : null;
+                        // Backward compatibility: accept either home_id or property_id
+                        $home_id = null;
+                        if (isset($input['home_id'])) {
+                            $home_id = (int) $input['home_id'];
+                        } elseif (isset($input['property_id'])) {
+                            $home_id = (int) $input['property_id'];
                         }
 
-                        // Ensure sender and receiver are different types
-                        if ($user['user_type'] === $receiver_type) {
-                            http_response_code(400);
-                            echo json_encode(['error' => 'Cannot send message to same user type']);
-                            exit();
-                        }
+                        if ($conversation_id) {
+                            // Use provided conversation if user is a participant
+                            $details = $messaging->getConversationDetails($conversation_id);
+                            if (!$details) {
+                                http_response_code(404);
+                                echo json_encode(['error' => 'Conversation not found']);
+                                exit();
+                            }
+                            $isParticipant = ($user['user_type'] === 'tenant' && (int)$details['tenant_id'] === (int)$user['user_id'])
+                                || ($user['user_type'] === 'homeowner' && (int)$details['homeowner_id'] === (int)$user['user_id']);
+                            if (!$isParticipant) {
+                                http_response_code(403);
+                                echo json_encode(['error' => 'Forbidden']);
+                                exit();
+                            }
 
-                        // Determine tenant and homeowner IDs
-                        if ($user['user_type'] === 'tenant') {
-                            $tenant_id = $user['user_id'];
-                            $homeowner_id = $receiver_id;
+                            // Determine receiver from conversation
+                            if ($user['user_type'] === 'tenant') {
+                                $receiver_id = (int) $details['homeowner_id'];
+                                $receiver_type = 'homeowner';
+                            } else {
+                                $receiver_id = (int) $details['tenant_id'];
+                                $receiver_type = 'tenant';
+                            }
+
+                            $result = $messaging->sendMessage(
+                                $conversation_id,
+                                $user['user_id'],
+                                $user['user_type'],
+                                $receiver_id,
+                                $receiver_type,
+                                $content
+                            );
                         } else {
-                            $tenant_id = $receiver_id;
-                            $homeowner_id = $user['user_id'];
+                            // Validate receiver info for creating/locating conversation
+                            if (!isset($input['receiver_id']) || !isset($input['receiver_type'])) {
+                                http_response_code(400);
+                                echo json_encode(['error' => 'Receiver ID and receiver type are required']);
+                                exit();
+                            }
+                            $receiver_id = (int) $input['receiver_id'];
+                            $receiver_type = $input['receiver_type'];
+
+                            if (!in_array($receiver_type, ['tenant', 'homeowner'])) {
+                                http_response_code(400);
+                                echo json_encode(['error' => 'Invalid receiver type']);
+                                exit();
+                            }
+                            if ($user['user_type'] === $receiver_type) {
+                                http_response_code(400);
+                                echo json_encode(['error' => 'Cannot send message to same user type']);
+                                exit();
+                            }
+
+                            // Determine tenant and homeowner IDs
+                            if ($user['user_type'] === 'tenant') {
+                                $tenant_id = $user['user_id'];
+                                $homeowner_id = $receiver_id;
+                            } else {
+                                $tenant_id = $receiver_id;
+                                $homeowner_id = $user['user_id'];
+                            }
+
+                            // Locate or create conversation, honoring home_id if provided
+                            $conversation_result = $messaging->getOrCreateConversation($tenant_id, $homeowner_id, $home_id);
+                            if (!$conversation_result['success']) {
+                                http_response_code(500);
+                                echo json_encode(['error' => $conversation_result['message']]);
+                                exit();
+                            }
+                            $conversation_id = $conversation_result['conversation_id'];
+
+                            $result = $messaging->sendMessage(
+                                $conversation_id,
+                                $user['user_id'],
+                                $user['user_type'],
+                                $receiver_id,
+                                $receiver_type,
+                                $content
+                            );
                         }
-
-                        // Get or create conversation
-                        $conversation_result = $messaging->getOrCreateConversation($tenant_id, $homeowner_id, $home_id);
-
-                        if (!$conversation_result['success']) {
-                            http_response_code(500);
-                            echo json_encode(['error' => $conversation_result['message']]);
-                            exit();
-                        }
-
-                        $conversation_id = $conversation_result['conversation_id'];
-
-                        // Send the message
-                        $result = $messaging->sendMessage(
-                            $conversation_id,
-                            $user['user_id'],
-                            $user['user_type'],
-                            $receiver_id,
-                            $receiver_type,
-                            $content
-                        );
 
                         if ($result['success']) {
                             echo json_encode([
@@ -185,6 +228,13 @@ try {
 
                         $receiver_id = (int) $input['receiver_id'];
                         $receiver_type = $input['receiver_type'];
+                        // Backward compatibility: accept either home_id or property_id
+                        $home_id = null;
+                        if (isset($input['home_id'])) {
+                            $home_id = (int) $input['home_id'];
+                        } elseif (isset($input['property_id'])) {
+                            $home_id = (int) $input['property_id'];
+                        }
 
                         if (!in_array($receiver_type, ['tenant', 'homeowner'])) {
                             http_response_code(400);
@@ -202,7 +252,7 @@ try {
                         }
 
                         // Call getOrCreateConversation to get or create a conversation ID
-                        $conversation_result = $messaging->getOrCreateConversation($tenant_id, $homeowner_id, null);
+                        $conversation_result = $messaging->getOrCreateConversation($tenant_id, $homeowner_id, $home_id);
 
                         if ($conversation_result['success']) {
                             echo json_encode([
